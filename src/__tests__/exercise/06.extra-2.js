@@ -11,6 +11,7 @@ window.navigator.geolocation = {getCurrentPosition: jest.fn()}
 // it allows you to create a promise that you can resolve/reject on demand.
 function deferred() {
   let resolve, reject
+
   const promise = new Promise((res, rej) => {
     resolve = res
     reject = rej
@@ -25,7 +26,7 @@ function deferred() {
 // await promise
 // // assert on the resolved state
 
-test('displays the users current location', async () => {
+test('handles error gracefully', async () => {
   // 🐨 create a fakePosition object that has an object called "coords" with latitude and longitude
   // 📜 https://developer.mozilla.org/en-US/docs/Web/API/GeolocationPosition
   const fakePosition = {coords: {latitude: 1124, longitude: 123}}
@@ -42,26 +43,30 @@ test('displays the users current location', async () => {
   // navigator.geolocation.getCurrentPosition(success, error)
   navigator.geolocation.getCurrentPosition.mockImplementation(
     (success, error) => {
-      promise.then(() => success(fakePosition))
+      promise.then(
+        () => {
+          console.log('successsss')
+          success(fakePosition)
+        },
+        () => {
+          console.log('mamma mia there is an error ')
+          error(new Error('MAMMA MIA'))
+        },
+      )
     },
   )
   render(<Location />)
   const loadingSpinner = screen.getByLabelText(/loading/i)
   expect(loadingSpinner).toBeInTheDocument()
 
-  resolve()
-
   await act(async () => {
-    await promise
+    reject()
   })
 
   expect(screen.queryByLabelText(/loading/)).not.toBeInTheDocument()
-  expect(screen.getByText(/longitude/i)).toHaveTextContent(
-    `Longitude: ${fakePosition.coords.longitude}`,
-  )
-  expect(screen.getByText(/latitude/i)).toHaveTextContent(
-    `Latitude: ${fakePosition.coords.latitude}`,
-  )
+  expect(screen.queryByText(/longitude/i)).not.toBeInTheDocument()
+  expect(screen.queryByText(/latitude/i)).not.toBeInTheDocument()
+  expect(screen.getByRole('alert')).toHaveTextContent('MAMMA MIA')
 })
 
 /*
